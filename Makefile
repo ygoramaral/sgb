@@ -88,6 +88,8 @@ OBJS = $(KERNELFILES:.w=.o) $(GENERATORFILES:.w=.o) gb_dijk.o gb_save.o
 HEADERS = $(OBJS:.o=.h)
 DEMOS = $(DEMOFILES:.w=)
 
+.PHONY: help tests install uninstall installdata uninstalldata installdemos uninstalldemos clean veryclean doc lib
+
 help:
 	@ echo "First 'make tests';"
 	@ echo "then (optionally) become superuser;"
@@ -139,10 +141,33 @@ install: lib
 	- mkdir $(INCLUDEDIR)
 	- cp -p $(HEADERS) Makefile $(INCLUDEDIR)
 
+uninstall:
+	@if [ "$(DATADIR)" = "." ] || [ "$(INCLUDEDIR)" = "." ] || [ "$(CWEBINPUTS)" = "." ]; then \
+		echo "Refusing to uninstall when using SHORTCUT (dirs set to .)"; \
+		exit 1; \
+	fi
+	- rm -f $(LIBDIR)/libgb.a
+	- rm -f $(CWEBINPUTS)/boilerplate.w $(CWEBINPUTS)/gb_types.w
+	- rm -f $(INCLUDEDIR)/Makefile
+	- rm -f $(addprefix $(INCLUDEDIR)/,$(HEADERS))
+	- $(MAKE) uninstalldata
+	- rmdir $(INCLUDEDIR) 2>/dev/null
+	- rmdir $(SGBDIR) 2>/dev/null
+	- rmdir $(CWEBINPUTS) 2>/dev/null
+
 installdata: $(DATAFILES)
 	- mkdir $(SGBDIR)
 	- mkdir $(DATADIR)
 	- cp -p $(DATAFILES) $(DATADIR)
+
+uninstalldata:
+	@if [ "$(DATADIR)" = "." ] || [ "$(INCLUDEDIR)" = "." ] || [ "$(CWEBINPUTS)" = "." ]; then \
+		echo "Refusing to uninstall when using SHORTCUT (dirs set to .)"; \
+		exit 1; \
+	fi
+	- rm -f $(addprefix $(DATADIR)/,$(DATAFILES))
+	- rmdir $(DATADIR) 2>/dev/null
+	- rmdir $(SGBDIR) 2>/dev/null
 
 installdemos: lib $(DEMOS)
 	- mkdir $(BINDIR)
