@@ -92,7 +92,7 @@ occasion to use some of the standard string operations.
 
 @<Header...@>=
 #include <stdio.h>
-#ifdef SYSV
+#if defined(SYSV) || defined(__linux__)
 #include <string.h>
 #else
 #include <strings.h>

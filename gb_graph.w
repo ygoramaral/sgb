@@ -40,7 +40,7 @@ programs at a higher level via the system loading routine. Here is
 the general outline of \.{gb\_graph.c}:
 
 @p
-#ifdef SYSV
+#if defined(SYSV) || defined(__linux__)
 #include <string.h>
 #else
 #include <strings.h>
@@ -838,6 +838,11 @@ the hash table will be worthless, unless |hash_setup| is used to
 rehash everything.
 
 @<gb_graph.h@>=
+#if defined(SYSV) || defined(__linux__)
+#include <string.h>
+#else
+#include <strings.h>
+#endif
 extern void hash_in(); /* input a name to the hash table of current graph */
 extern Vertex* hash_out(); /* find a name in hash table of current graph */
 extern void hash_setup(); /* create a hash table for a given graph */

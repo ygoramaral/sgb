@@ -36,7 +36,8 @@ CWEBINPUTS = /usr/local/lib/cweb
 #SYS = -DSYSV
 
 #   If you prefer optimization to debugging, change -g to something like -O:
-CFLAGS = -g -I$(INCLUDEDIR) $(SYS)
+STD ?= -std=gnu17
+CFLAGS = -g $(STD) -I$(INCLUDEDIR) $(SYS)
 
 ########## You shouldn't have to change anything after this point ##########
 
