@@ -37,13 +37,15 @@ CWEBINPUTS = /usr/local/lib/cweb
 
 #   If you prefer optimization to debugging, change -g to something like -O:
 STD ?= -std=gnu17
-CFLAGS = -g $(STD) -I$(INCLUDEDIR) $(SYS)
+CFLAGS = -g $(STD) -fPIC -I$(INCLUDEDIR) $(SYS)
 
 ########## You shouldn't have to change anything after this point ##########
 
 LDFLAGS = -L. -L$(LIBDIR)
 LDLIBS = -lgb
 LOADLIBES = $(LDLIBS)
+SONAME = libgb.so.1
+SHLIB  = libgb.so.1.0
 
 .SUFFIXES: .dvi .tex .w
 
@@ -88,7 +90,7 @@ OBJS = $(KERNELFILES:.w=.o) $(GENERATORFILES:.w=.o) gb_dijk.o gb_save.o
 HEADERS = $(OBJS:.o=.h)
 DEMOS = $(DEMOFILES:.w=)
 
-.PHONY: help tests install uninstall installdata uninstalldata installdemos uninstalldemos clean veryclean doc lib
+.PHONY: help tests install uninstall installdata uninstalldata installdemos uninstalldemos clean veryclean doc lib shlib
 
 help:
 	@ echo "First 'make tests';"
@@ -103,6 +105,13 @@ libgb.a: $(OBJS)
 	rm -f certified
 	ar rcv libgb.a $(OBJS)
 	- ranlib libgb.a
+
+shlib: $(SHLIB)
+
+$(SHLIB): $(OBJS)
+	$(CC) -shared -Wl,-soname,$(SONAME) -o $(SHLIB) $(OBJS)
+	ln -sf $(SHLIB) $(SONAME)
+	ln -sf $(SONAME) libgb.so
 
 gb_io.o: gb_io.c
 	$(CC) $(CFLAGS) -DDATA_DIRECTORY=\"$(DATADIR)/\" -c gb_io.c
@@ -130,23 +139,35 @@ tests: test_io test_graph test_flip
 	echo "Congratulations --- the tests have all been passed."
 	touch certified
 
-install: lib
+install: lib shlib
 	if test ! -r certified; then echo "Please run 'make tests' first!"; fi
 	test -r certified
 	make installdata
 	- mkdir $(LIBDIR)
 	- cp libgb.a $(LIBDIR)
+	- cp -P $(SHLIB) $(SONAME) libgb.so $(LIBDIR)
 	- mkdir $(CWEBINPUTS)
 	- cp -p boilerplate.w gb_types.w $(CWEBINPUTS)
 	- mkdir $(INCLUDEDIR)
 	- cp -p $(HEADERS) Makefile $(INCLUDEDIR)
+	@# Ensure $(LIBDIR) is in the dynamic linker search path
+	@if [ -d /etc/ld.so.conf.d ]; then \
+		if [ ! -f /etc/ld.so.conf.d/sgb.conf ] || ! grep -qx "$(LIBDIR)" /etc/ld.so.conf.d/sgb.conf; then \
+			echo "$(LIBDIR)" >> /etc/ld.so.conf.d/sgb.conf || echo "Warning: couldn't update /etc/ld.so.conf.d/sgb.conf"; \
+		fi; \
+	else \
+		echo "Warning: /etc/ld.so.conf.d not found; you may need to add $(LIBDIR) to the loader path manually"; \
+	fi
+	- ldconfig
+	rm -f libgb.so $(SONAME) $(SHLIB)
 
 uninstall:
-	@if [ "$(DATADIR)" = "." ] || [ "$(INCLUDEDIR)" = "." ] || [ "$(CWEBINPUTS)" = "." ]; then \
+	@if [ "$(DATADIR)" = "." ] || [ "$(INCLUDEDIR)" = "." ] || [ "$(CWEBINPUTS)" = "." ] || [ "$(LIBDIR)" = "." ]; then \
 		echo "Refusing to uninstall when using SHORTCUT (dirs set to .)"; \
 		exit 1; \
 	fi
 	- rm -f $(LIBDIR)/libgb.a
+	- rm -f $(LIBDIR)/$(SHLIB) $(LIBDIR)/$(SONAME) $(LIBDIR)/libgb.so
 	- rm -f $(CWEBINPUTS)/boilerplate.w $(CWEBINPUTS)/gb_types.w
 	- rm -f $(INCLUDEDIR)/Makefile
 	- rm -f $(addprefix $(INCLUDEDIR)/,$(HEADERS))
@@ -154,6 +175,12 @@ uninstall:
 	- rmdir $(INCLUDEDIR) 2>/dev/null
 	- rmdir $(SGBDIR) 2>/dev/null
 	- rmdir $(CWEBINPUTS) 2>/dev/null
+	@# Remove loader path entry if present
+	- if [ -f /etc/ld.so.conf.d/sgb.conf ]; then \
+		sed -i "\|^$(LIBDIR)$$|d" /etc/ld.so.conf.d/sgb.conf; \
+		if [ ! -s /etc/ld.so.conf.d/sgb.conf ]; then rm -f /etc/ld.so.conf.d/sgb.conf; fi; \
+	  fi
+	- ldconfig
 
 installdata: $(DATAFILES)
 	- mkdir $(SGBDIR)
